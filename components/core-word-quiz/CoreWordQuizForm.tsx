@@ -72,7 +72,7 @@ export default function CoreWordQuizForm({
       correct_answer: correctAnswer.trim(),
       selectable_words: safeSelectable,
       feedback_by_word: feedback_by_word && typeof feedback_by_word === "object" ? feedback_by_word : {},
-      sort_order: sortOrder === "" ? null : parseInt(sortOrder, 10),
+      sort_order: sortOrder === "" || sortOrder == null ? null : parseInt(String(sortOrder), 10),
     };
 
     try {
