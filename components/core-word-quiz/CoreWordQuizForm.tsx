@@ -23,7 +23,12 @@ function parseSelectableWords(value: string): string[] {
 function parseFeedbackByWord(value: string): Record<string, string> {
   try {
     const o = JSON.parse(value || "{}");
-    return typeof o === "object" && o !== null ? o : {};
+    if (typeof o !== "object" || o === null) return {};
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(o)) {
+      if (typeof k === "string" && v != null) out[k] = String(v);
+    }
+    return out;
   } catch {
     return {};
   }
@@ -58,11 +63,14 @@ export default function CoreWordQuizForm({
     const selectable_words = parseSelectableWords(selectableWordsText);
     const feedback_by_word = parseFeedbackByWord(feedbackByWordText);
 
-    // jsonb 컬럼에는 반드시 배열/객체만 전달 (문자열 '[]'/'{}' 전달 시 저장 오류 방지)
+    // jsonb 컬럼에는 반드시 배열/객체만 전달 (타입이 string[] / Record<string, string> 이어야 함)
+    const safeSelectable = Array.isArray(selectable_words)
+      ? selectable_words.map((s) => (typeof s === "string" ? s : String(s)))
+      : [];
     const payload = {
       sentence: sentence.trim(),
       correct_answer: correctAnswer.trim(),
-      selectable_words: Array.isArray(selectable_words) ? selectable_words : [],
+      selectable_words: safeSelectable,
       feedback_by_word: feedback_by_word && typeof feedback_by_word === "object" ? feedback_by_word : {},
       sort_order: sortOrder === "" ? null : parseInt(sortOrder, 10),
     };
