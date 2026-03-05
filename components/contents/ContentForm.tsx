@@ -98,6 +98,15 @@ export default function ContentForm({
     setPreviewUrl(URL.createObjectURL(file));
   };
 
+  const handleClearThumbnail = () => {
+    setThumbnailFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setThumbnailUrl(null);
+  };
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -164,7 +173,8 @@ export default function ContentForm({
       }
       router.refresh();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "저장에 실패했습니다.");
+      const anyErr = err as { message?: string };
+      setError(typeof anyErr?.message === "string" ? anyErr.message : "저장에 실패했습니다.");
     } finally {
       setLoading(false);
     }
@@ -327,15 +337,30 @@ export default function ContentForm({
               ) : (
                 <ThumbnailImage src={thumbnailUrl} alt="" fill className="object-cover" />
               )}
+              {(previewUrl || thumbnailUrl) && (
+                <button
+                  type="button"
+                  onClick={handleClearThumbnail}
+                  className="absolute top-2 right-2 inline-flex items-center justify-center w-7 h-7 rounded-full bg-black/60 text-white text-xs font-bold hover:bg-black/80"
+                  aria-label="섬네일 삭제"
+                >
+                  ×
+                </button>
+              )}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 space-y-1.5">
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
                 onChange={handleFileChange}
                 className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-medium file:bg-[#ff5700] file:text-white file:cursor-pointer hover:file:opacity-90"
               />
-              <p className="mt-1 text-xs text-gray-500">JPG, PNG, WebP, GIF (최대 {MAX_IMAGE_SIZE_MB}MB). Supabase Storage thumbnails 버킷에 업로드 후 Public URL이 thumbnail_url에 저장됩니다.</p>
+              <p className="text-xs text-gray-500">
+                JPG, PNG, WebP, GIF (최대 {MAX_IMAGE_SIZE_MB}MB). Supabase Storage thumbnails 버킷에 업로드 후 Public URL이 thumbnail_url에 저장됩니다.
+              </p>
+              <p className="text-xs text-gray-400">
+                섬네일을 제거하려면 우측 상단 <span className="font-semibold">×</span> 버튼을 눌러 삭제할 수 있습니다.
+              </p>
             </div>
           </div>
         </div>

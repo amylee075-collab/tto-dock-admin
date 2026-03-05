@@ -37,6 +37,14 @@ Supabase 대시보드에서 로그인에 쓸 계정을 만듭니다.
 
 > 회원가입(Sign up)을 막고 관리자만 쓰려면: **Authentication** → **Providers** → **Email**에서 **Confirm email**을 켜두고, 위처럼 대시보드에서만 사용자 추가하면 됩니다. (이메일 확인이 필요하면 생성 시 이메일 인증 링크가 발송됩니다.)
 
+**로그인이 안 될 때**
+
+1. **Supabase에서 사용자 '이메일 확인' 처리**  
+   **Authentication** → **Users** → 해당 사용자 행 클릭 → **Confirm email** 버튼 클릭(또는 **Email confirmed** 체크). 대시보드에서 추가한 사용자는 인증 메일을 받지 않으므로 수동으로 확인 처리해야 합니다.
+2. **Vercel 등 외부 도메인에서 로그인하는 경우**  
+   **Authentication** → **URL Configuration** → **Redirect URLs**에 배포 URL 추가 (예: `https://프로젝트.vercel.app/**`). **Site URL**도 배포 URL로 맞추면 좋습니다.
+3. **이메일/비밀번호** 띄어쓰기·대소문자 확인. 비밀번호는 8자 이상 권장.
+
 ### 3. Supabase 설정 (Storage·테이블)
 
 1. **Storage**: Storage에서 `thumbnails` 버킷을 생성하고 **Public**으로 설정. 콘텐츠 등록 시 이미지 파일이 이 버킷에 업로드되고, 생성된 Public URL이 `contents.thumbnail_url`(text)에 저장됨

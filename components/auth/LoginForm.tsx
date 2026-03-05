@@ -26,11 +26,14 @@ function LoginFormInner() {
         password,
       });
       if (signInError) {
-        setError(
-          signInError.message === "Invalid login credentials"
-            ? "이메일 또는 비밀번호가 올바르지 않습니다."
-            : signInError.message
-        );
+        const msg = signInError.message;
+        if (msg === "Invalid login credentials") {
+          setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+        } else if (msg.includes("Email not confirmed") || msg === "signup_not_confirmed") {
+          setError("이메일 인증이 완료되지 않았습니다. Supabase 대시보드에서 사용자를 '확인됨'으로 설정하세요.");
+        } else {
+          setError(msg);
+        }
         return;
       }
       router.push(redirectTo);
