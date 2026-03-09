@@ -164,7 +164,16 @@ export default function ContentForm({
         if (updateError) throw updateError;
         router.push("/dashboard/contents");
       } else {
+        const newId =
+          title
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, "-")
+            .replace(/[^a-z0-9가-힣-]/g, "")
+            .slice(0, 80) || "content";
+        const uniqueId = `${newId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         const { error: insertError } = await supabase.from("contents").insert({
+          id: uniqueId,
           ...payload,
           created_at: new Date().toISOString(),
         });

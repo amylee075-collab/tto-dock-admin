@@ -53,22 +53,24 @@ export default async function TodayWordsPage() {
 
       {!error && words.length > 0 && (
         <div className="rounded-2xl border-2 border-gray-100 bg-white overflow-hidden">
-          <table className="w-full text-left">
+          <table className="w-full text-left table-fixed">
             <thead>
               <tr className="bg-gray-50 text-sm font-semibold text-gray-600 border-b border-gray-100">
-                <th className="px-6 py-3">단어</th>
-                <th className="px-6 py-3">유형</th>
-                <th className="px-6 py-3">뜻</th>
-                <th className="px-6 py-3 w-20">관리</th>
+                <th className="px-4 py-3 w-28">단어</th>
+                <th className="px-4 py-3 w-24">유형</th>
+                <th className="px-4 py-3 min-w-0">뜻</th>
+                <th className="px-4 py-3 min-w-0">예문</th>
+                <th className="px-4 py-3 w-20">관리</th>
               </tr>
             </thead>
             <tbody>
               {words.map((w) => (
                 <tr key={w.id} className="border-b border-gray-100 hover:bg-orange-50/30">
-                  <td className="px-6 py-3 font-bold text-[#212529]">{w.word}</td>
-                  <td className="px-6 py-3 text-gray-600">{w.type}</td>
-                  <td className="px-6 py-3 text-gray-600 max-w-md truncate">{w.meaning}</td>
-                  <td className="px-6 py-3">
+                  <td className="px-4 py-3 font-bold text-[#212529] align-top">{w.word}</td>
+                  <td className="px-4 py-3 text-gray-600 align-top">{w.type}</td>
+                  <td className="px-4 py-3 text-gray-600 align-top break-words">{w.meaning}</td>
+                  <td className="px-4 py-3 text-gray-600 align-top break-words">{w.example ?? "—"}</td>
+                  <td className="px-4 py-3 align-top">
                     <Link href={`/dashboard/today-words/${w.id}/edit`} className="text-[#ff5700] font-medium hover:underline">
                       수정
                     </Link>

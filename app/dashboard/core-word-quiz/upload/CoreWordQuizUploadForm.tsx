@@ -114,8 +114,16 @@ export default function CoreWordQuizUploadForm() {
           선택: <strong>feedback_by_word</strong>(JSON), <strong>sort_order</strong>(숫자). 문장에 쉼표가 있으면 셀을 따옴표로 감싸세요.
         </p>
         <p className="text-xs text-gray-500 mb-2">
-          샘플: 헤더만 있는 CSV를 만들어 sentence, correct_answer, selectable_words(선택지는 | 구분)를 채운 뒤 업로드하세요. feedback_by_word는 비우면 빈 객체로 저장됩니다.
+          feedback_by_word는 비우면 빈 객체로 저장됩니다. 문장에 쉼표가 있으면 셀을 따옴표로 감싸세요.
         </p>
+        <a
+          href="/samples/core-word-quiz-sample.csv"
+          download="core-word-quiz-sample.csv"
+          className="text-sm text-[#ff5700] font-medium hover:underline mb-2 inline-block"
+        >
+          샘플 CSV 다운로드
+        </a>
+        <br />
         <label className="flex flex-col sm:flex-row sm:items-center gap-2">
           <span className="text-sm font-medium text-gray-700">CSV 선택:</span>
           <input

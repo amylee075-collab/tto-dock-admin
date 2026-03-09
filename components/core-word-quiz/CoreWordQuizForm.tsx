@@ -80,7 +80,8 @@ export default function CoreWordQuizForm({
         const { error: updateError } = await supabase.from("core_word_quiz").update(payload).eq("id", id);
         if (updateError) throw updateError;
       } else {
-        const { error: insertError } = await supabase.from("core_word_quiz").insert(payload);
+        const insertPayload = { ...payload, id: crypto.randomUUID() };
+        const { error: insertError } = await supabase.from("core_word_quiz").insert(insertPayload);
         if (insertError) throw insertError;
       }
       router.push("/dashboard/core-word-quiz");

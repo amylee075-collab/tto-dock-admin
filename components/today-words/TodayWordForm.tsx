@@ -44,8 +44,16 @@ export default function TodayWordForm({
         const { error: updateError } = await supabase.from("today_words").update(payload).eq("id", id);
         if (updateError) throw updateError;
       } else {
-        const { error: insertError } = await supabase.from("today_words").insert(payload);
-        if (insertError) throw insertError;
+        const insertPayload = { ...payload, id: crypto.randomUUID() };
+        const { error: insertError } = await supabase.from("today_words").insert(insertPayload);
+        if (insertError) {
+          const msg = insertError.message || "";
+          if (msg.includes("unique") || msg.includes("duplicate") || (insertError as { code?: string }).code === "23505") {
+            setError("이미 등록된 단어입니다. 목록에서 해당 단어를 선택해 수정해 주세요.");
+            return;
+          }
+          throw insertError;
+        }
       }
       router.push("/dashboard/today-words");
       router.refresh();
