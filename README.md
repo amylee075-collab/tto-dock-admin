@@ -5,10 +5,10 @@ TTO-DOCK2 서비스의 관리자 대시보드입니다. Next.js 15와 Tailwind C
 ## 기능
 
 - **보안**: Supabase Auth 로그인, 미들웨어로 비인가 접근 차단
-- **콘텐츠 CRUD**: 읽기 콘텐츠 등록·수정·삭제, 섬네일 업로드 (Supabase Storage)
-- **오늘의 단어**: 메인 화면 &#39;오늘의 단어&#39; 단어 목록 관리 (TTO-DOCK2 연동)
-- **문해력 기초 훈련**: 핵심 단어 찾기 퀴즈 문항 관리 (TTO-DOCK2 /practice/core-word 연동)
-- **학습자 데이터**: 학습자 수·읽기 횟수·학습 시간 요약, 일별 차트 (Recharts)
+- **콘텐츠 CRUD**: 읽기 콘텐츠 등록·수정·삭제, 유형별 탭(전체/짧은 글/긴 글/분야별/디지털), 칩(분야·난이도), 썸네일 업로드 (Supabase Storage). 신규 등록 시 `id` 자동 생성(제목 기반 slug + 타임스탬프 + 랜덤)
+- **오늘의 단어**: 메인 화면 '오늘의 단어' 단어 목록 관리 (TTO-DOCK2 연동). 목록 테이블에 **단어·유형·뜻·예문** 노출, CSV 일괄 업로드 시 **중복 단어는 기존 행 수정·신규만 insert**
+- **문해력 기초 훈련**: 핵심 단어 찾기 퀴즈 문항 관리 (TTO-DOCK2 /practice/core-word 연동). 일괄 업로드용 **샘플 CSV** 제공(`/samples/core-word-quiz-sample.csv`), 일괄·신규 등록 시 `id` 자동 생성
+- **학습자 데이터**: 학습자 수·읽기 횟수·학습 시간 요약, 일별 차트 (Recharts). 오늘의 단어는 **기준 50건** 안내
 
 ## 시작하기
 
@@ -48,21 +48,23 @@ Supabase 대시보드에서 로그인에 쓸 계정을 만듭니다.
 ### 3. Supabase 설정 (Storage·테이블)
 
 1. **Storage**: Storage에서 `thumbnails` 버킷을 생성하고 **Public**으로 설정. 콘텐츠 등록 시 이미지 파일이 이 버킷에 업로드되고, 생성된 Public URL이 `contents.thumbnail_url`(text)에 저장됨
-3. **테이블 (선택)**  
-- **contents** (콘텐츠 관리용, TTO-DOCK2 읽기와 연동):  
-  `id`, `title`, `description`, `thumbnail_url`, `type`, `content`, `vocabulary` (jsonb, nullable), `section` (text, nullable — 분야별 글: 과학|역사|사회), `badges` (jsonb, nullable — 칩 라벨 배열 예: `["과학","쉬움"]`, `["디지털","신문기사"]`), `created_at`, `updated_at`  
-  - 이미 contents 테이블이 있다면 Supabase SQL에서 칩용 컬럼 추가:  
-    `alter table public.contents add column if not exists section text;`  
-    `alter table public.contents add column if not exists badges jsonb;`
-   - **learners** (학습자 대시보드용):  
-     `id`, `name`, `email`, `total_reading_count`, `total_reading_minutes`, `last_activity_at`  
-   - **reading_activity_daily** (일별 차트용):  
-     `date` (date), `count` (int), `minutes` (int)  
+
+2. **테이블 (선택)**
+
+   - **contents** (콘텐츠 관리용, TTO-DOCK2 읽기와 연동):  
+     `id`, `title`, `description`, `thumbnail_url`, `type`, `content`, `vocabulary` (jsonb, nullable), `section` (text, nullable), `badges` (jsonb, nullable — 칩 라벨 배열), `created_at`, `updated_at`  
+     - 칩용 컬럼 추가: `alter table public.contents add column if not exists section text;` / `alter table public.contents add column if not exists badges jsonb;`
+
    - **today_words** (오늘의 단어):  
-     `id` (uuid), `word` (text), `meaning` (text), `example` (text), `type` (text: 순우리말 | 한자어 | 외래어), `created_at` (timestamptz)  
+     `id` (uuid), `word` (text, **unique**), `meaning` (text), `example` (text), `type` (text: 순우리말 | 한자어 | 외래어), `created_at` (timestamptz)  
+     - `word`에 unique 제약이 있으면 CSV 일괄 업로드 시 **이미 있는 단어는 수정**, 없는 단어만 **신규 insert** 되도록 앱에서 처리합니다.
+
    - **core_word_quiz** (문해력 기초 훈련):  
-     `id` (uuid), `sentence` (text), `correct_answer` (text), `selectable_words` (jsonb 배열, 기본값 `'[]'::jsonb`), `feedback_by_word` (jsonb 객체, 기본값 `'{}'::jsonb`), `sort_order` (int, nullable), `created_at` (timestamptz)  
-     - 퀴즈 저장이 안 되면: Supabase SQL에서 `alter table public.core_word_quiz alter column selectable_words set default '[]'::jsonb;` / `feedback_by_word set default '{}'::jsonb;` 실행
+     `id` (uuid), `sentence` (text), `correct_answer` (text), `selectable_words` (jsonb 배열), `feedback_by_word` (jsonb 객체), `sort_order` (int, nullable), `created_at` (timestamptz)  
+     - 필요 시: `alter table public.core_word_quiz alter column selectable_words set default '[]'::jsonb;` / `feedback_by_word set default '{}'::jsonb;`
+
+   - **learners** (학습자 대시보드용): `id`, `name`, `email`, `total_reading_count`, `total_reading_minutes`, `last_activity_at`  
+   - **reading_activity_daily** (일별 차트용): `date` (date), `count` (int), `minutes` (int)
 
 테이블이 없어도 앱은 동작하며, 해당 메뉴에서 안내 메시지가 표시되거나 TTO-DOCK2는 기존 로컬 데이터를 사용합니다.
 
@@ -81,17 +83,39 @@ npm run dev
 |------|------|
 | `/` | 로그인 시 `/dashboard`, 비로그인 시 `/login`으로 리다이렉트 |
 | `/login` | 관리자 로그인 |
-| `/dashboard` | 대시보드 홈 |
-| `/dashboard/contents` | 콘텐츠 목록 |
-| `/dashboard/contents/new` | 새 콘텐츠 등록 (섬네일 업로드 포함) |
+| `/dashboard` | 대시보드 홈 (오늘의 단어 기준 50건 등 안내) |
+| `/dashboard/contents` | 콘텐츠 목록 (유형별 탭·칩) |
+| `/dashboard/contents/new` | 새 콘텐츠 등록 (섬네일 업로드, id 자동 생성) |
 | `/dashboard/contents/[id]/edit` | 콘텐츠 수정 |
-| `/dashboard/today-words` | 오늘의 단어 목록 |
-| `/dashboard/today-words/new` | 오늘의 단어 추가 |
+| `/dashboard/today-words` | 오늘의 단어 목록 (단어·유형·뜻·예문) |
+| `/dashboard/today-words/new` | 오늘의 단어 추가 (중복 시 안내 메시지) |
 | `/dashboard/today-words/[id]/edit` | 오늘의 단어 수정 |
+| `/dashboard/today-words/upload` | 오늘의 단어 CSV 일괄 업로드 (중복 시 기존 수정·신규만 추가) |
 | `/dashboard/core-word-quiz` | 문해력 기초 훈련(핵심 단어 퀴즈) 문항 목록 |
 | `/dashboard/core-word-quiz/new` | 퀴즈 문항 추가 |
 | `/dashboard/core-word-quiz/[id]/edit` | 퀴즈 문항 수정 |
+| `/dashboard/core-word-quiz/upload` | 퀴즈 CSV 일괄 업로드 (샘플 CSV 다운로드 가능) |
 | `/dashboard/learners` | 학습자 데이터·차트 |
+
+## 동작 개요 (알고리즘·비즈니스 로직)
+
+- **오늘의 단어 CSV 일괄 업로드**  
+  1) 업로드 전 `today_words`에서 기존 `word` 목록 조회  
+  2) CSV 행을 **신규**(DB에 없는 단어) / **기존**(이미 있는 단어)으로 분리  
+  3) 신규: `id`를 `randomUUID()`로 부여 후 `insert`  
+  4) 기존: 해당 `word`에 대해 `meaning`, `example`, `type`만 `update`  
+  5) 결과 메시지: "N건 신규 등록, M건 기존 수정되었습니다."
+
+- **오늘의 단어 신규 등록(폼)**  
+  - `id`는 `crypto.randomUUID()`로 생성 후 insert.  
+  - `word` unique 위반(이미 등록된 단어) 시 "이미 등록된 단어입니다. 목록에서 해당 단어를 선택해 수정해 주세요." 안내.
+
+- **문해력 기초 퀴즈**  
+  - 일괄 업로드·신규 문항 모두 insert 시 `id`를 서버/클라이언트에서 `randomUUID()`·`crypto.randomUUID()`로 부여.  
+  - 샘플 CSV: `public/samples/core-word-quiz-sample.csv` (헤더: sentence, correct_answer, selectable_words, feedback_by_word, sort_order / 선택지는 `|` 구분).
+
+- **콘텐츠 신규 등록**  
+  - `id`는 제목 기반 slug(소문자·하이픈, 80자 제한) + `Date.now()` + 랜덤 6자로 생성해 insert. 저장 실패 시 Supabase 에러 메시지를 그대로 노출.
 
 ## UI
 

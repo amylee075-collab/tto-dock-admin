@@ -16,7 +16,7 @@ git push -u origin main
 ```
 
 - 이미 `origin`이 있으면 `git remote set-url origin https://github.com/...` 로 주소만 수정
-- 기본 브랜치가 `master`면 `git push -u origin master` 로 푸시해도 됨
+- 기본 브랜치가 `master`면 `git push -u origin master` 로 푸시 (이 프로젝트는 `master` 사용)
 
 ---
 
@@ -60,4 +60,4 @@ git push -u origin main
 - **Storage**  
   콘텐츠 섬네일을 쓰는 경우 Supabase Storage `thumbnails` 버킷이 **Public** 인지 확인하세요.
 
-- 이후 코드 수정 후 `git add` → `git commit` → `git push` 하면 Vercel이 자동으로 다시 배포합니다.
+- 이후 코드 수정 후 `git add` → `git commit` → `git push origin master` 하면 Vercel이 자동으로 다시 배포합니다. (브랜치가 main이면 `git push origin main`)
