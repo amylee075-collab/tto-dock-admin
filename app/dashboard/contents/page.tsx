@@ -12,14 +12,21 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const TYPE_VALUES = ["all", "short", "long", "category", "digital"] as const;
+const PAGE_SIZE = 15;
 
-type Props = { searchParams: Promise<{ type?: string }> };
+type Props = { searchParams: Promise<{ type?: string; page?: string }> };
+
+function paginationQuery(type: string, page: number): string {
+  if (type === "all") return page > 1 ? `?page=${page}` : "";
+  return page > 1 ? `?type=${type}&page=${page}` : `?type=${type}`;
+}
 
 export default async function ContentsPage({ searchParams }: Props) {
-  const { type: typeParam } = await searchParams;
+  const { type: typeParam, page: pageParam } = await searchParams;
   const currentType = typeParam && TYPE_VALUES.includes(typeParam as (typeof TYPE_VALUES)[number])
     ? (typeParam as (typeof TYPE_VALUES)[number])
     : "all";
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
 
   const supabase = await createClient();
   const { data: rows, error } = await supabase
@@ -41,6 +48,12 @@ export default async function ContentsPage({ searchParams }: Props) {
     currentType === "all"
       ? allContents
       : allContents.filter((c) => c.type === currentType);
+
+  const total = contents.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageClamped = Math.min(Math.max(1, page), totalPages);
+  const showPagination = total > PAGE_SIZE;
+  const contentsToShow = contents.slice((pageClamped - 1) * PAGE_SIZE, pageClamped * PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -108,30 +121,79 @@ export default async function ContentsPage({ searchParams }: Props) {
       )}
 
       {!error && contents.length > 0 && (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {contents.map((c) => (
-            <li key={c.id}>
-              <Link
-                href={`/dashboard/contents/${c.id}/edit`}
-                className="block rounded-2xl border-2 border-gray-100 bg-white overflow-hidden shadow-sm hover:border-[#ff5700]/50 hover:shadow-md transition"
-              >
-                <div className="aspect-video bg-gray-100 relative">
-                  <ThumbnailImage
-                    src={c.thumbnail_url}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 33vw"
-                  />
-                </div>
-                <div className="p-4">
-                  <h3 className="font-bold text-[#212529] truncate">{c.title}</h3>
-                  <p className="text-sm text-gray-500 mt-0.5 truncate">{c.description ?? "—"}</p>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {contentsToShow.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={`/dashboard/contents/${c.id}/edit`}
+                  className="block rounded-2xl border-2 border-gray-100 bg-white overflow-hidden shadow-sm hover:border-[#ff5700]/50 hover:shadow-md transition"
+                >
+                  <div className="aspect-video bg-gray-100 relative">
+                    <ThumbnailImage
+                      src={c.thumbnail_url}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                    />
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-bold text-[#212529] truncate">{c.title}</h3>
+                    <p className="text-sm text-gray-500 mt-0.5 truncate">{c.description ?? "—"}</p>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          {showPagination && (
+            <nav className="flex items-center justify-center gap-2 py-6" aria-label="페이지 내비게이션">
+              {pageClamped > 1 ? (
+                <Link
+                  href={`/dashboard/contents${paginationQuery(currentType, pageClamped - 1)}`}
+                  className="inline-flex h-10 px-4 items-center justify-center rounded-xl border-2 border-gray-200 text-gray-600 hover:bg-gray-50 font-medium"
+                  aria-label="이전 페이지"
+                >
+                  이전
+                </Link>
+              ) : (
+                <span className="inline-flex h-10 px-4 items-center justify-center rounded-xl border-2 border-gray-200 text-gray-400 cursor-not-allowed font-medium" aria-hidden>
+                  이전
+                </span>
+              )}
+              <div className="flex items-center gap-1 mx-2 flex-wrap justify-center">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <Link
+                    key={p}
+                    href={`/dashboard/contents${paginationQuery(currentType, p)}`}
+                    className={`inline-flex h-10 min-w-10 px-3 items-center justify-center rounded-xl font-semibold transition ${
+                      p === pageClamped
+                        ? "bg-[#ff5700] text-white border-2 border-[#ff5700]"
+                        : "border-2 border-gray-200 text-gray-600 hover:bg-orange-50 hover:border-[#ff5700]/50"
+                    }`}
+                    aria-current={p === pageClamped ? "page" : undefined}
+                  >
+                    {p}
+                  </Link>
+                ))}
+              </div>
+              {pageClamped < totalPages ? (
+                <Link
+                  href={`/dashboard/contents${paginationQuery(currentType, pageClamped + 1)}`}
+                  className="inline-flex h-10 px-4 items-center justify-center rounded-xl border-2 border-gray-200 text-gray-600 hover:bg-gray-50 font-medium"
+                  aria-label="다음 페이지"
+                >
+                  다음
+                </Link>
+              ) : (
+                <span className="inline-flex h-10 px-4 items-center justify-center rounded-xl border-2 border-gray-200 text-gray-400 cursor-not-allowed font-medium" aria-hidden>
+                  다음
+                </span>
+              )}
+            </nav>
+          )}
+        </>
       )}
     </div>
   );
