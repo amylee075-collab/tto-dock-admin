@@ -7,8 +7,8 @@ const PAGE_SIZE = 50;
 type PageProps = { searchParams?: Promise<{ page?: string }> };
 
 export default async function TodayWordsPage(props: PageProps) {
-  const searchParams = await (props.searchParams ?? Promise.resolve({}));
-  const page = Math.max(1, parseInt(searchParams?.page ?? "1", 10) || 1);
+  const searchParams = await (props.searchParams ?? Promise.resolve({} as { page?: string }));
+  const page = Math.max(1, parseInt(searchParams.page ?? "1", 10) || 1);
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
