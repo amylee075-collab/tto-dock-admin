@@ -126,7 +126,7 @@ export default async function ContentsPage({ searchParams }: Props) {
             {contentsToShow.map((c) => (
               <li key={c.id}>
                 <Link
-                  href={`/dashboard/contents/${c.id}/edit`}
+                  href={`/dashboard/contents/${encodeURIComponent(c.id)}/edit`}
                   className="block rounded-2xl border-2 border-gray-100 bg-white overflow-hidden shadow-sm hover:border-[#ff5700]/50 hover:shadow-md transition"
                 >
                   <div className="aspect-video bg-gray-100 relative">

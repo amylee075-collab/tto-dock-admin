@@ -5,6 +5,27 @@ export type ContentVocabularyItem = {
   example: string;
 };
 
+/** 단어 퀴즈 1개 (contents.core_quiz) */
+export type CoreQuiz = {
+  problem_sentence: string;
+  correct_answer: string;
+  wrong_answers: [string, string];
+  similar_answers: string[];
+} | null;
+
+/** 독해 퀴즈 1문항 (문제, 보기 4개, 정답 인덱스) */
+export type ReadQuizItem = {
+  question: string;
+  options: [string, string, string, string];
+  correct_answer: number;
+};
+
+/** 요약 퀴즈 1문항 */
+export type SummaryQuizItem = {
+  question: string;
+  model_answer: string;
+};
+
 /** TTO-DOCK2 읽기와 연동: type이 short | category | digital 이면 해당 목록에서 노출 */
 export type Content = {
   id: string;
@@ -18,8 +39,14 @@ export type Content = {
   vocabulary: ContentVocabularyItem[] | null;
   /** 분야별 글: 과학 | 역사 | 사회 (카드 분류·칩용) */
   section: string | null;
-  /** 카드 칩 라벨: 분야별 [과학|역사|사회, 쉬움|어려움], 디지털 [디지털, 신문기사, 미디어 비판, 쉬움, 어려움] 등 */
+  /** 카드 칩 라벨 */
   badges: string[] | null;
+  /** 단어 퀴즈 (문제 문장, 정답 단어, 오답 2개, 유사 정답 배열) */
+  core_quiz?: CoreQuiz;
+  /** 독해 퀴즈 (문제·보기 4개·정답 세트 최대 5개) */
+  read_quizzes?: ReadQuizItem[] | null;
+  /** 요약 퀴즈 (문제·모범답안 세트 최대 5개) */
+  summary_quiz?: SummaryQuizItem[] | null;
   created_at: string;
   updated_at: string;
 };

@@ -47,13 +47,34 @@ Supabase 대시보드에서 로그인에 쓸 계정을 만듭니다.
 
 ### 3. Supabase 설정 (Storage·테이블)
 
-1. **Storage**: Storage에서 `thumbnails` 버킷을 생성하고 **Public**으로 설정. 콘텐츠 등록 시 이미지 파일이 이 버킷에 업로드되고, 생성된 Public URL이 `contents.thumbnail_url`(text)에 저장됨
+1. **Storage**: Storage에서 `thumbnails` 버킷을 생성하고 **Public**으로 설정. 콘텐츠 등록 시 이미지 파일이 이 버킷에 업로드되고, 생성된 Public URL이 `contents.thumbnail_url`(text)에 저장됨  
+   - **섬네일 업로드 시 "new row violates row-level security policy" 에러가 나면**: Supabase 대시보드 → **SQL Editor**에서 아래 정책을 실행하세요. (Storage는 기본적으로 RLS가 켜져 있어, 업로드/조회를 허용하는 정책이 필요합니다.)
+   ```sql
+   -- thumbnails 버킷 업로드 허용 (로그인한 관리자)
+   CREATE POLICY "Allow authenticated upload to thumbnails"
+   ON storage.objects FOR INSERT TO authenticated
+   WITH CHECK (bucket_id = 'thumbnails');
+
+   -- thumbnails 버킷 공개 조회 (이미지 노출)
+   CREATE POLICY "Allow public read thumbnails"
+   ON storage.objects FOR SELECT TO public
+   USING (bucket_id = 'thumbnails');
+
+   -- 수정/삭제 허용 (선택)
+   CREATE POLICY "Allow authenticated update thumbnails"
+   ON storage.objects FOR UPDATE TO authenticated
+   USING (bucket_id = 'thumbnails');
+   CREATE POLICY "Allow authenticated delete thumbnails"
+   ON storage.objects FOR DELETE TO authenticated
+   USING (bucket_id = 'thumbnails');
+   ```
 
 2. **테이블 (선택)**
 
    - **contents** (콘텐츠 관리용, TTO-DOCK2 읽기와 연동):  
-     `id`, `title`, `description`, `thumbnail_url`, `type`, `content`, `vocabulary` (jsonb, nullable), `section` (text, nullable), `badges` (jsonb, nullable — 칩 라벨 배열), `created_at`, `updated_at`  
-     - 칩용 컬럼 추가: `alter table public.contents add column if not exists section text;` / `alter table public.contents add column if not exists badges jsonb;`
+     `id`, `title`, `description`, `thumbnail_url`, `type`, `content`, `vocabulary` (jsonb, nullable), `section` (text, nullable), `badges` (jsonb, nullable), `core_quiz` (jsonb, nullable), `read_quizzes` (jsonb, nullable), `summary_quiz` (jsonb, nullable), `created_at`, `updated_at`  
+     - 칩용: `alter table public.contents add column if not exists section text;` / `alter table public.contents add column if not exists badges jsonb;`  
+     - 퀴즈용: `alter table public.contents add column if not exists core_quiz jsonb;` / `alter table public.contents add column if not exists read_quizzes jsonb;` / `alter table public.contents add column if not exists summary_quiz jsonb;`
 
    - **today_words** (오늘의 단어):  
      `id` (uuid), `word` (text, **unique**), `meaning` (text), `example` (text), `type` (text: 순우리말 | 한자어 | 외래어), `created_at` (timestamptz)  

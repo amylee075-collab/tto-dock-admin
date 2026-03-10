@@ -117,7 +117,7 @@ export default function CoreWordQuizUploadForm() {
           feedback_by_word는 비우면 빈 객체로 저장됩니다. 문장에 쉼표가 있으면 셀을 따옴표로 감싸세요.
         </p>
         <a
-          href="/samples/core-word-quiz-sample.csv"
+          href="/api/samples/core-word-quiz-csv"
           download="core-word-quiz-sample.csv"
           className="text-sm text-[#ff5700] font-medium hover:underline mb-2 inline-block"
         >

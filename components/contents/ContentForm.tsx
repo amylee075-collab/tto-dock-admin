@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getThumbnailsBucket } from "@/lib/supabase/storage";
 import ThumbnailImage from "@/components/contents/ThumbnailImage";
+import type { CoreQuiz, ReadQuizItem, SummaryQuizItem } from "@/lib/types";
 
 type VocabularyItem = { word: string; meaning: string; example: string };
 
@@ -27,6 +28,9 @@ type ContentFormProps = {
   initialVocabulary?: VocabularyItem[] | null;
   initialSection?: string | null;
   initialBadges?: string[] | null;
+  initialCoreQuiz?: CoreQuiz;
+  initialReadQuizzes?: ReadQuizItem[] | null;
+  initialSummaryQuiz?: SummaryQuizItem[] | null;
 };
 
 const emptyVocab = (): VocabularyItem => ({ word: "", meaning: "", example: "" });
@@ -41,6 +45,9 @@ export default function ContentForm({
   initialVocabulary = null,
   initialSection = null,
   initialBadges = null,
+  initialCoreQuiz = null,
+  initialReadQuizzes = null,
+  initialSummaryQuiz = null,
 }: ContentFormProps) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
@@ -64,6 +71,54 @@ export default function ContentForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const defaultCoreQuiz = (): NonNullable<CoreQuiz> => ({
+    problem_sentence: "",
+    correct_answer: "",
+    wrong_answers: ["", ""],
+    similar_answers: [],
+  });
+  const defaultReadQuiz = (): ReadQuizItem => ({
+    question: "",
+    options: ["", "", "", ""],
+    correct_answer: 0,
+  });
+  const defaultSummaryItem = (): SummaryQuizItem => ({ question: "", model_answer: "" });
+
+  const [coreQuiz, setCoreQuiz] = useState<NonNullable<CoreQuiz>>(() =>
+    initialCoreQuiz && (initialCoreQuiz.problem_sentence || initialCoreQuiz.correct_answer)
+      ? {
+          problem_sentence: initialCoreQuiz.problem_sentence ?? "",
+          correct_answer: initialCoreQuiz.correct_answer ?? "",
+          wrong_answers: Array.isArray(initialCoreQuiz.wrong_answers) && initialCoreQuiz.wrong_answers.length >= 2
+            ? [initialCoreQuiz.wrong_answers[0] ?? "", initialCoreQuiz.wrong_answers[1] ?? ""]
+            : ["", ""],
+          similar_answers: Array.isArray(initialCoreQuiz.similar_answers) ? initialCoreQuiz.similar_answers : [],
+        }
+      : defaultCoreQuiz()
+  );
+  const [readQuizzes, setReadQuizzes] = useState<ReadQuizItem[]>(() => {
+    if (initialReadQuizzes && initialReadQuizzes.length > 0) {
+      return initialReadQuizzes.slice(0, 5).map((q) => ({
+        question: q.question ?? "",
+        options: Array.isArray(q.options) && q.options.length >= 4
+          ? [q.options[0] ?? "", q.options[1] ?? "", q.options[2] ?? "", q.options[3] ?? ""]
+          : ["", "", "", ""],
+        correct_answer: typeof q.correct_answer === "number" && q.correct_answer >= 0 && q.correct_answer <= 3 ? q.correct_answer : 0,
+      }));
+    }
+    return [defaultReadQuiz()];
+  });
+  const [summaryQuiz, setSummaryQuiz] = useState<SummaryQuizItem[]>(() => {
+    if (initialSummaryQuiz && initialSummaryQuiz.length > 0) {
+      return initialSummaryQuiz.slice(0, 5).map((s) => ({
+        question: s.question ?? "",
+        model_answer: s.model_answer ?? "",
+      }));
+    }
+    return [defaultSummaryItem()];
+  });
+  const [accordionOpen, setAccordionOpen] = useState<"core" | "read" | "summary" | null>("core");
+
   const toggleField = (field: string) => {
     setSelectedFields((prev) =>
       prev.includes(field) ? prev.filter((c) => c !== field) : [...prev, field]
@@ -75,6 +130,28 @@ export default function ContentForm({
     setVocabulary((prev) => (prev.length <= 1 ? [emptyVocab()] : prev.filter((_, i) => i !== index)));
   const updateVocabularyRow = (index: number, field: keyof VocabularyItem, value: string) =>
     setVocabulary((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+
+  const addReadQuiz = () => setReadQuizzes((prev) => (prev.length < 5 ? [...prev, defaultReadQuiz()] : prev));
+  const removeReadQuiz = (index: number) =>
+    setReadQuizzes((prev) => (prev.length <= 1 ? [defaultReadQuiz()] : prev.filter((_, i) => i !== index)));
+  const updateReadQuiz = (index: number, field: keyof ReadQuizItem, value: string | number | string[]) =>
+    setReadQuizzes((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+
+  const addSummaryItem = () => setSummaryQuiz((prev) => (prev.length < 5 ? [...prev, defaultSummaryItem()] : prev));
+  const removeSummaryItem = (index: number) =>
+    setSummaryQuiz((prev) => (prev.length <= 1 ? [defaultSummaryItem()] : prev.filter((_, i) => i !== index)));
+  const updateSummaryItem = (index: number, field: keyof SummaryQuizItem, value: string) =>
+    setSummaryQuiz((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+
+  const addSimilarAnswer = () => setCoreQuiz((prev) => ({ ...prev, similar_answers: [...prev.similar_answers, ""] }));
+  const removeSimilarAnswer = (i: number) =>
+    setCoreQuiz((prev) => ({ ...prev, similar_answers: prev.similar_answers.filter((_, idx) => idx !== i) }));
+  const updateSimilarAnswer = (i: number, v: string) =>
+    setCoreQuiz((prev) => ({
+      ...prev,
+      similar_answers: prev.similar_answers.map((s, idx) => (idx === i ? v : s)),
+    }));
+
   const vocabularyToSave = vocabulary
     .map((v) => ({ word: v.word.trim(), meaning: v.meaning.trim(), example: v.example.trim() }))
     .filter((v) => v.word || v.meaning || v.example);
@@ -147,15 +224,45 @@ export default function ContentForm({
         }
       }
 
+      const hasCoreQuiz =
+        coreQuiz.problem_sentence.trim() ||
+        coreQuiz.correct_answer.trim() ||
+        coreQuiz.wrong_answers.some((w) => w.trim()) ||
+        coreQuiz.similar_answers.some((s) => s.trim());
+      const coreQuizPayload = hasCoreQuiz
+        ? {
+            problem_sentence: coreQuiz.problem_sentence.trim(),
+            correct_answer: coreQuiz.correct_answer.trim(),
+            wrong_answers: [coreQuiz.wrong_answers[0]?.trim() ?? "", coreQuiz.wrong_answers[1]?.trim() ?? ""],
+            similar_answers: coreQuiz.similar_answers.map((s) => s.trim()).filter(Boolean),
+          }
+        : null;
+
+      const readQuizzesPayload = readQuizzes
+        .filter((q) => q.question.trim() || q.options.some((o) => o.trim()))
+        .slice(0, 5)
+        .map((q) => ({
+          question: q.question.trim(),
+          options: q.options.map((o) => o.trim()),
+          correct_answer: q.correct_answer,
+        }));
+      const summaryQuizPayload = summaryQuiz
+        .filter((s) => s.question.trim() || s.model_answer.trim())
+        .slice(0, 5)
+        .map((s) => ({ question: s.question.trim(), model_answer: s.model_answer.trim() }));
+
       const payload = {
         title: title.trim(),
         description: description.trim() || null,
-        thumbnail_url: finalThumbnailUrl,
+        thumbnail_url: finalThumbnailUrl ?? "",
         type,
         content: content.trim() || null,
         vocabulary: vocabularyToSave.length > 0 ? vocabularyToSave : null,
         section: sectionValue,
         badges: badgesValue,
+        core_quiz: coreQuizPayload,
+        read_quizzes: readQuizzesPayload.length > 0 ? readQuizzesPayload : null,
+        summary_quiz: summaryQuizPayload.length > 0 ? summaryQuizPayload : null,
         updated_at: new Date().toISOString(),
       };
 
@@ -164,14 +271,14 @@ export default function ContentForm({
         if (updateError) throw updateError;
         router.push("/dashboard/contents");
       } else {
-        const newId =
+        const slug =
           title
             .trim()
             .toLowerCase()
             .replace(/\s+/g, "-")
-            .replace(/[^a-z0-9가-힣-]/g, "")
+            .replace(/[^a-z0-9-]/g, "")
             .slice(0, 80) || "content";
-        const uniqueId = `${newId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const uniqueId = `${slug}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         const { error: insertError } = await supabase.from("contents").insert({
           id: uniqueId,
           ...payload,
@@ -374,6 +481,193 @@ export default function ContentForm({
           </div>
         </div>
       </div>
+
+      <div className="rounded-2xl border-2 border-gray-100 bg-white overflow-hidden">
+        <p className="p-4 text-sm font-semibold text-[#212529] border-b border-gray-100">퀴즈 등록</p>
+        <div className="divide-y divide-gray-100">
+          <div>
+            <button
+              type="button"
+              onClick={() => setAccordionOpen((o) => (o === "core" ? null : "core"))}
+              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-orange-50/50 transition"
+            >
+              <span>단어 퀴즈 (core_quiz)</span>
+              <span className="text-gray-400">{accordionOpen === "core" ? "▲" : "▼"}</span>
+            </button>
+            {accordionOpen === "core" && (
+              <div className="px-4 pb-4 pt-0 space-y-3 bg-gray-50/50">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">문제 문장</label>
+                  <input
+                    type="text"
+                    value={coreQuiz.problem_sentence}
+                    onChange={(e) => setCoreQuiz((p) => ({ ...p, problem_sentence: e.target.value }))}
+                    placeholder="빈칸에 들어갈 단어를 고르는 문장"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-[#ff5700] outline-none text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">정답 단어</label>
+                  <input
+                    type="text"
+                    value={coreQuiz.correct_answer}
+                    onChange={(e) => setCoreQuiz((p) => ({ ...p, correct_answer: e.target.value }))}
+                    placeholder="정답"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-[#ff5700] outline-none text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">오답 2개</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={coreQuiz.wrong_answers[0]}
+                      onChange={(e) => setCoreQuiz((p) => ({ ...p, wrong_answers: [e.target.value, p.wrong_answers[1]] }))}
+                      placeholder="오답 1"
+                      className="flex-1 px-3 py-2 rounded-lg border border-gray-200 focus:border-[#ff5700] outline-none text-sm"
+                    />
+                    <input
+                      type="text"
+                      value={coreQuiz.wrong_answers[1]}
+                      onChange={(e) => setCoreQuiz((p) => ({ ...p, wrong_answers: [p.wrong_answers[0], e.target.value] }))}
+                      placeholder="오답 2"
+                      className="flex-1 px-3 py-2 rounded-lg border border-gray-200 focus:border-[#ff5700] outline-none text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">유사 정답 (선택)</label>
+                  <div className="space-y-2">
+                    {coreQuiz.similar_answers.map((s, i) => (
+                      <div key={i} className="flex gap-2">
+                        <input
+                          type="text"
+                          value={s}
+                          onChange={(e) => updateSimilarAnswer(i, e.target.value)}
+                          placeholder="유사 정답"
+                          className="flex-1 px-3 py-2 rounded-lg border border-gray-200 focus:border-[#ff5700] outline-none text-sm"
+                        />
+                        <button type="button" onClick={() => removeSimilarAnswer(i)} className="shrink-0 px-2 text-gray-500 hover:text-red-600 text-sm">
+                          삭제
+                        </button>
+                      </div>
+                    ))}
+                    <button type="button" onClick={addSimilarAnswer} className="text-sm text-[#ff5700] font-medium hover:underline">
+                      + 유사 정답 추가
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => setAccordionOpen((o) => (o === "read" ? null : "read"))}
+              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-orange-50/50 transition"
+            >
+              <span>독해 퀴즈 (read_quizzes) · 최대 5개</span>
+              <span className="text-gray-400">{accordionOpen === "read" ? "▲" : "▼"}</span>
+            </button>
+            {accordionOpen === "read" && (
+              <div className="px-4 pb-4 pt-0 space-y-4 bg-gray-50/50">
+                {readQuizzes.map((q, idx) => (
+                  <div key={idx} className="p-3 rounded-xl border border-gray-200 bg-white space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-semibold text-gray-500">문항 {idx + 1}</span>
+                      {readQuizzes.length > 1 && (
+                        <button type="button" onClick={() => removeReadQuiz(idx)} className="text-xs text-red-600 hover:underline">
+                          삭제
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={q.question}
+                      onChange={(e) => updateReadQuiz(idx, "question", e.target.value)}
+                      placeholder="문제"
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-[#ff5700] outline-none text-sm"
+                    />
+                    {q.options.map((opt, oi) => (
+                      <div key={oi} className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name={`read-correct-${idx}`}
+                          checked={q.correct_answer === oi}
+                          onChange={() => updateReadQuiz(idx, "correct_answer", oi)}
+                          className="text-[#ff5700]"
+                        />
+                        <input
+                          type="text"
+                          value={opt}
+                          onChange={(e) => {
+                            const next = [...q.options];
+                            next[oi] = e.target.value;
+                            updateReadQuiz(idx, "options", next);
+                          }}
+                          placeholder={`보기 ${oi + 1}`}
+                          className="flex-1 px-3 py-2 rounded-lg border border-gray-200 focus:border-[#ff5700] outline-none text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                {readQuizzes.length < 5 && (
+                  <button type="button" onClick={addReadQuiz} className="text-sm text-[#ff5700] font-medium hover:underline">
+                    + 독해 문항 추가
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => setAccordionOpen((o) => (o === "summary" ? null : "summary"))}
+              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-orange-50/50 transition"
+            >
+              <span>요약 퀴즈 (summary_quiz) · 최대 5개</span>
+              <span className="text-gray-400">{accordionOpen === "summary" ? "▲" : "▼"}</span>
+            </button>
+            {accordionOpen === "summary" && (
+              <div className="px-4 pb-4 pt-0 space-y-4 bg-gray-50/50">
+                {summaryQuiz.map((s, idx) => (
+                  <div key={idx} className="p-3 rounded-xl border border-gray-200 bg-white space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-semibold text-gray-500">문항 {idx + 1}</span>
+                      {summaryQuiz.length > 1 && (
+                        <button type="button" onClick={() => removeSummaryItem(idx)} className="text-xs text-red-600 hover:underline">
+                          삭제
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={s.question}
+                      onChange={(e) => updateSummaryItem(idx, "question", e.target.value)}
+                      placeholder="문제"
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-[#ff5700] outline-none text-sm"
+                    />
+                    <textarea
+                      value={s.model_answer}
+                      onChange={(e) => updateSummaryItem(idx, "model_answer", e.target.value)}
+                      placeholder="모범 답안"
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-[#ff5700] outline-none text-sm resize-none"
+                    />
+                  </div>
+                ))}
+                {summaryQuiz.length < 5 && (
+                  <button type="button" onClick={addSummaryItem} className="text-sm text-[#ff5700] font-medium hover:underline">
+                    + 요약 문항 추가
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {error && (
         <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" role="alert">{error}</p>
       )}
