@@ -5,7 +5,8 @@ import CoreWordQuizForm from "@/components/core-word-quiz/CoreWordQuizForm";
 type Props = { params: Promise<{ id: string }> };
 
 export default async function EditCoreWordQuizPage({ params }: Props) {
-  const { id } = await params;
+  const { id: rawId } = await params;
+  const id = decodeURIComponent(rawId);
   const supabase = await createClient();
   const { data, error } = await supabase.from("core_word_quiz").select("*").eq("id", id).single();
 

@@ -5,7 +5,8 @@ import TodayWordForm from "@/components/today-words/TodayWordForm";
 type Props = { params: Promise<{ id: string }> };
 
 export default async function EditTodayWordPage({ params }: Props) {
-  const { id } = await params;
+  const { id: rawId } = await params;
+  const id = decodeURIComponent(rawId);
   const supabase = await createClient();
   const { data, error } = await supabase.from("today_words").select("*").eq("id", id).single();
 
