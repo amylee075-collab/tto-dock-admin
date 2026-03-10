@@ -98,13 +98,16 @@ export default function ContentForm({
   );
   const [readQuizzes, setReadQuizzes] = useState<ReadQuizItem[]>(() => {
     if (initialReadQuizzes && initialReadQuizzes.length > 0) {
-      return initialReadQuizzes.slice(0, 5).map((q) => ({
-        question: q.question ?? "",
-        options: Array.isArray(q.options) && q.options.length >= 4
-          ? [q.options[0] ?? "", q.options[1] ?? "", q.options[2] ?? "", q.options[3] ?? ""]
-          : ["", "", "", ""],
-        correct_answer: typeof q.correct_answer === "number" && q.correct_answer >= 0 && q.correct_answer <= 3 ? q.correct_answer : 0,
-      }));
+      return initialReadQuizzes.slice(0, 5).map((q) => {
+        const options = Array.isArray(q.options) && q.options.length >= 2
+          ? q.options.map((o) => String(o ?? ""))
+          : ["", ""];
+        const correct_answer =
+          typeof q.correct_answer === "number" && q.correct_answer >= 0
+            ? Math.min(q.correct_answer, options.length - 1)
+            : 0;
+        return { question: q.question ?? "", options, correct_answer };
+      });
     }
     return [defaultReadQuiz()];
   });
@@ -266,6 +269,9 @@ export default function ContentForm({
         updated_at: new Date().toISOString(),
       };
 
+      // 확인용: Supabase에 전송되는 payload 로그
+      console.log("[ContentForm] Supabase payload (저장 시 전송 데이터):", JSON.stringify(payload, null, 2));
+
       if (id) {
         const { error: updateError } = await supabase.from("contents").update(payload).eq("id", id);
         if (updateError) throw updateError;
@@ -290,7 +296,17 @@ export default function ContentForm({
       router.refresh();
     } catch (err: unknown) {
       const anyErr = err as { message?: string };
-      setError(typeof anyErr?.message === "string" ? anyErr.message : "저장에 실패했습니다.");
+      const msg = typeof anyErr?.message === "string" ? anyErr.message : "";
+      if (msg.includes("core_quiz") || msg.includes("read_quizzes") || msg.includes("summary_quiz") || msg.includes("schema cache")) {
+        setError(
+          "contents 테이블에 퀴즈 컬럼이 없습니다. Supabase 대시보드 → SQL Editor에서 아래를 실행한 뒤 다시 저장해 주세요.\n\n" +
+            "ALTER TABLE public.contents ADD COLUMN IF NOT EXISTS core_quiz jsonb;\n" +
+            "ALTER TABLE public.contents ADD COLUMN IF NOT EXISTS read_quizzes jsonb;\n" +
+            "ALTER TABLE public.contents ADD COLUMN IF NOT EXISTS summary_quiz jsonb;"
+        );
+      } else {
+        setError(msg || "저장에 실패했습니다.");
+      }
     } finally {
       setLoading(false);
     }

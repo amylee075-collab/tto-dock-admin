@@ -8,7 +8,11 @@ export default async function EditContentPage({ params }: Props) {
   const { id: rawId } = await params;
   const id = decodeURIComponent(rawId);
   const supabase = await createClient();
-  const { data, error } = await supabase.from("contents").select("*").eq("id", id).single();
+  const { data, error } = await supabase
+    .from("contents")
+    .select("id, title, description, thumbnail_url, type, content, vocabulary, section, badges, core_quiz, read_quizzes, summary_quiz, created_at, updated_at")
+    .eq("id", id)
+    .single();
 
   if (error || !data) notFound();
 
@@ -52,19 +56,25 @@ export default async function EditContentPage({ params }: Props) {
       : null;
 
   const rawReadQuizzes = data.read_quizzes;
-  const initialReadQuizzes =
+  const initialReadQuizzes: { question: string; options: string[]; correct_answer: number }[] | null =
     Array.isArray(rawReadQuizzes) && rawReadQuizzes.length > 0
-      ? rawReadQuizzes.slice(0, 5).map((q: Record<string, unknown>) => ({
-          question: String(q.question ?? ""),
-          options: Array.isArray(q.options) && q.options.length >= 4
-            ? [String(q.options[0] ?? ""), String(q.options[1] ?? ""), String(q.options[2] ?? ""), String(q.options[3] ?? "")]
-            : (["", "", "", ""] as [string, string, string, string]),
-          correct_answer: typeof q.correct_answer === "number" && q.correct_answer >= 0 && q.correct_answer <= 3 ? q.correct_answer : 0,
-        }))
+      ? rawReadQuizzes.slice(0, 5).map((q: Record<string, unknown>) => {
+          const options = Array.isArray(q.options)
+            ? (q.options as unknown[]).map((o) => String(o ?? ""))
+            : [];
+          const correctIdx = typeof q.correct_answer === "number" && q.correct_answer >= 0
+            ? Math.min(q.correct_answer, Math.max(0, options.length - 1))
+            : 0;
+          return {
+            question: String(q.question ?? ""),
+            options: options.length >= 2 ? options : ["", ""],
+            correct_answer: correctIdx,
+          };
+        })
       : null;
 
   const rawSummaryQuiz = data.summary_quiz;
-  const initialSummaryQuiz =
+  const initialSummaryQuiz: { question: string; model_answer: string }[] | null =
     Array.isArray(rawSummaryQuiz) && rawSummaryQuiz.length > 0
       ? rawSummaryQuiz.slice(0, 5).map((s: Record<string, unknown>) => ({
           question: String(s.question ?? ""),
