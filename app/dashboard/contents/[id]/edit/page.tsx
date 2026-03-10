@@ -35,16 +35,20 @@ export default async function EditContentPage({ params }: Props) {
   const rawCoreQuiz = data.core_quiz;
   const initialCoreQuiz =
     rawCoreQuiz && typeof rawCoreQuiz === "object" && !Array.isArray(rawCoreQuiz)
-      ? {
-          problem_sentence: String((rawCoreQuiz as Record<string, unknown>).problem_sentence ?? ""),
-          correct_answer: String((rawCoreQuiz as Record<string, unknown>).correct_answer ?? ""),
-          wrong_answers: Array.isArray((rawCoreQuiz as Record<string, unknown>).wrong_answers)
-            ? [(rawCoreQuiz as Record<string, unknown>).wrong_answers[0] ?? "", (rawCoreQuiz as Record<string, unknown>).wrong_answers[1] ?? ""]
-            : (["", ""] as [string, string]),
-          similar_answers: Array.isArray((rawCoreQuiz as Record<string, unknown>).similar_answers)
-            ? ((rawCoreQuiz as Record<string, unknown>).similar_answers as string[])
-            : [],
-        }
+      ? (() => {
+          const q = rawCoreQuiz as Record<string, unknown>;
+          const wrongArray = Array.isArray(q.wrong_answers) ? (q.wrong_answers as unknown[]) : [];
+          const wrong0 = typeof wrongArray[0] === "string" ? (wrongArray[0] as string) : "";
+          const wrong1 = typeof wrongArray[1] === "string" ? (wrongArray[1] as string) : "";
+          const similarArray = Array.isArray(q.similar_answers) ? (q.similar_answers as unknown[]) : [];
+          const similar_answers = similarArray.filter((s): s is string => typeof s === "string");
+          return {
+            problem_sentence: String(q.problem_sentence ?? ""),
+            correct_answer: String(q.correct_answer ?? ""),
+            wrong_answers: [wrong0, wrong1] as [string, string],
+            similar_answers,
+          };
+        })()
       : null;
 
   const rawReadQuizzes = data.read_quizzes;
