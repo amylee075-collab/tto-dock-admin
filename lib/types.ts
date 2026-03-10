@@ -13,11 +13,11 @@ export type CoreQuiz = {
   similar_answers: string[];
 } | null;
 
-/** 독해 퀴즈 1문항 (문제, 보기 4개, 정답 인덱스) */
+/** 독해 퀴즈 1문항 (문제, 보기 2~4개, 정답 인덱스) */
 export type ReadQuizItem = {
   question: string;
-  options: [string, string, string, string];
-  correct_answer: number;
+  options: string[]; // 길이 2~4
+  correct_answer: number; // 0 ~ options.length - 1
 };
 
 /** 요약 퀴즈 1문항 */

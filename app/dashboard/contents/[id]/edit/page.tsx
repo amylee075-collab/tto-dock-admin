@@ -89,7 +89,7 @@ export default async function EditContentPage({ params }: Props) {
         initialSection={section}
         initialBadges={badges.length > 0 ? badges : null}
         initialCoreQuiz={initialCoreQuiz}
-        initialReadQuizzes={initialReadQuizzes}
+        initialReadQuizzes={initialReadQuizzes || []}
         initialSummaryQuiz={initialSummaryQuiz}
       />
     </div>
