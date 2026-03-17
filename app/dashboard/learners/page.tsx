@@ -6,17 +6,25 @@ export default async function LearnersPage() {
 
   let statsRows: unknown[] = [];
   let activityRows: unknown[] = [];
-  try {
-    const r1 = await supabase.from("learners").select("*").limit(100);
-    if (!r1.error) statsRows = r1.data ?? [];
-    const r2 = await supabase
-      .from("reading_activity_daily")
-      .select("date, count, minutes")
-      .order("date", { ascending: true })
-      .limit(90);
-    if (!r2.error) activityRows = r2.data ?? [];
-  } catch {
-    // 테이블 없음 시 빈 배열 유지
+  let learnersError: string | null = null;
+  let activityError: string | null = null;
+
+  const r1 = await supabase.from("learners").select("*").limit(100);
+  if (r1.error) {
+    learnersError = r1.error.message;
+  } else {
+    statsRows = r1.data ?? [];
+  }
+
+  const r2 = await supabase
+    .from("reading_activity_daily")
+    .select("date, count, minutes")
+    .order("date", { ascending: true })
+    .limit(90);
+  if (r2.error) {
+    activityError = r2.error.message;
+  } else {
+    activityRows = r2.data ?? [];
   }
 
   const learnerStats = statsRows as Array<{
@@ -35,6 +43,16 @@ export default async function LearnersPage() {
         <h1 className="text-2xl font-extrabold text-[#212529]">학습자 데이터</h1>
         <p className="mt-1 text-gray-600">학습 현황과 활동 추이를 확인하세요.</p>
       </div>
+      {(learnersError || activityError) && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-amber-800 text-sm" role="alert">
+          <p className="font-medium">데이터를 불러오지 못했습니다.</p>
+          {learnersError && <p className="mt-1">learners: {learnersError}</p>}
+          {activityError && <p className="mt-1">reading_activity_daily: {activityError}</p>}
+          <p className="mt-2 text-xs">
+            Supabase에 <strong>learners</strong>, <strong>reading_activity_daily</strong> 테이블을 만들었는지 확인하세요. RLS가 켜져 있으면 &quot;정책 추가&quot; 또는 &quot;authenticated / service_role SELECT 허용&quot;이 필요합니다.
+          </p>
+        </div>
+      )}
       <LearnerDashboardClient
         learnerStats={learnerStats}
         dailyActivity={dailyActivity}

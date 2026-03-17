@@ -42,7 +42,7 @@ export default async function DashboardPage() {
     contentsCount = c1.count ?? 0;
     todayWordsCount = c2.count ?? 0;
     quizCount = c3.count ?? 0;
-    totalUsers = cUsers.count ?? 0;
+    totalUsers = cUsers.error ? 0 : (cUsers.count ?? 0);
   } catch {
     // Supabase 미설정 또는 테이블 없음 시 0 유지
   }

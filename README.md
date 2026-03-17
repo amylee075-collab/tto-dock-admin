@@ -7,7 +7,7 @@ TTO-DOCK2 서비스의 관리자 대시보드입니다. Next.js 15와 Tailwind C
 - **보안**: Supabase Auth 로그인, 미들웨어로 비인가 접근 차단
 - **콘텐츠 CRUD**: 읽기 콘텐츠 등록·수정·삭제, 유형별 탭(전체/짧은 글/긴 글/분야별/디지털), 칩(분야·난이도), 썸네일 업로드 (Supabase Storage). 신규 등록 시 `id` 자동 생성(제목 기반 slug + 타임스탬프 + 랜덤)
 - **오늘의 단어**: 메인 화면 '오늘의 단어' 단어 목록 관리 (TTO-DOCK2 연동). 목록 테이블에 **단어·유형·뜻·예문** 노출, CSV 일괄 업로드 시 **중복 단어는 기존 행 수정·신규만 insert**
-- **문해력 기초 훈련**: 핵심 단어 찾기 퀴즈 문항 관리 (TTO-DOCK2 /practice/core-word 연동). 일괄 업로드용 **샘플 CSV** 제공(`/samples/core-word-quiz-sample.csv`), 일괄·신규 등록 시 `id` 자동 생성
+- **문해력 기초 훈련**: 핵심 단어 찾기 퀴즈 문항 관리 (TTO-DOCK2 /practice/core-word 연동). 일괄 업로드용 **샘플 CSV** 제공(`/samplescore-word-quiz-sample.csv`), 일괄·신규 등록 시 `id` 자동 생성
 - **학습자 데이터**: 학습자 수·읽기 횟수·학습 시간 요약, 일별 차트 (Recharts). 오늘의 단어는 **기준 50건** 안내
 
 ## 시작하기
@@ -84,8 +84,8 @@ Supabase 대시보드에서 로그인에 쓸 계정을 만듭니다.
      `id` (uuid), `sentence` (text), `correct_answer` (text), `selectable_words` (jsonb 배열), `feedback_by_word` (jsonb 객체), `sort_order` (int, nullable), `created_at` (timestamptz)  
      - 필요 시: `alter table public.core_word_quiz alter column selectable_words set default '[]'::jsonb;` / `feedback_by_word set default '{}'::jsonb;`
 
-   - **learners** (학습자 대시보드용): `id`, `name`, `email`, `total_reading_count`, `total_reading_minutes`, `last_activity_at`  
-   - **reading_activity_daily** (일별 차트용): `date` (date), `count` (int), `minutes` (int)
+   - **learners** (학습자 대시보드용): `id`, `name`, `email`, `total_reading_count`, `total_reading_minutes`, `last_activity_at` (선택: `created_at` — 있으면 대시보드 &quot;오늘 신규 회원&quot; 집계). RLS가 켜져 있으면 관리자(authenticated)가 SELECT할 수 있도록 정책을 추가하세요.  
+   - **reading_activity_daily** (일별 차트용): `date` (date), `count` (int), `minutes` (int). RLS 사용 시 SELECT 허용 정책 필요.
 
 테이블이 없어도 앱은 동작하며, 해당 메뉴에서 안내 메시지가 표시되거나 TTO-DOCK2는 기존 로컬 데이터를 사용합니다.
 
