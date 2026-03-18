@@ -10,10 +10,16 @@ function LoginFormInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirectTo") ?? "/dashboard";
+  const messageFromUrl = searchParams.get("message");
+  const errorFromUrl = searchParams.get("error");
+  const authMessage = searchParams.get("message");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    authMessage ? decodeURIComponent(authMessage) : errorFromUrl ? "다시 시도해 주세요." : null
+  );
   const [loading, setLoading] = useState(false);
+  const alertMessage = error ?? (messageFromUrl ? decodeURIComponent(messageFromUrl) : null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,9 +76,17 @@ function LoginFormInner() {
           />
         </div>
         <div>
-          <label htmlFor="password" className="block text-sm font-semibold text-[#212529] mb-1.5">
-            비밀번호
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="password" className="block text-sm font-semibold text-[#212529]">
+              비밀번호
+            </label>
+            <a
+              href="/forgot-password"
+              className="text-xs font-medium text-[#ff5700] hover:underline"
+            >
+              비밀번호를 잊으셨나요?
+            </a>
+          </div>
           <input
             id="password"
             type="password"
@@ -84,9 +98,9 @@ function LoginFormInner() {
             placeholder="••••••••"
           />
         </div>
-        {error && (
+        {alertMessage && (
           <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" role="alert">
-            {error}
+            {alertMessage}
           </p>
         )}
         <button

@@ -17,9 +17,10 @@ type Props = {
 };
 
 export default function VisitorsSummaryChart({ data }: Props) {
-  const items: Point[] = data.map((p) => ({
-    date: p.date.length >= 5 ? p.date.slice(5, 10) : p.date,
-    count: p.count,
+  const raw = Array.isArray(data) ? data : [];
+  const items: Point[] = raw.map((p) => ({
+    date: typeof p?.date === "string" && p.date.length >= 5 ? p.date.slice(5, 10) : String(p?.date ?? ""),
+    count: typeof p?.count === "number" ? p.count : 0,
   }));
 
   if (items.length === 0) {

@@ -1,23 +1,12 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import VisitorsSummaryChart from "@/components/dashboard/VisitorsSummaryChart";
+import {
+  getThisWeekRangeSeoul,
+  getTodaySeoulStartEnd,
+} from "@/lib/datetime";
 
 type VisitorsPoint = { date: string; count: number };
-
-function getThisWeekRange(): { start: string; end: string; today: string } {
-  const today = new Date();
-  const day = today.getDay() || 7; // 일요일(0) → 7
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - (day - 1));
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  const toStr = (d: Date) => d.toISOString().slice(0, 10);
-  return {
-    start: toStr(monday),
-    end: toStr(sunday),
-    today: toStr(today),
-  };
-}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -28,9 +17,10 @@ export default async function DashboardPage() {
   let totalUsers = 0;
   let todayNewUsers = 0;
   let visitorsThisWeek: VisitorsPoint[] = [];
-  let popularContents: { id: string; title: string; type?: string | null }[] = [];
+  let popularContents: { id: string; title: string; type?: string | null; clicks?: number; pageviews?: number; completed_count?: number }[] = [];
 
-  const { start, end, today } = getThisWeekRange();
+  const { start, end, today } = getThisWeekRangeSeoul();
+  const { start: todayStart, end: todayEnd } = getTodaySeoulStartEnd();
 
   try {
     const [c1, c2, c3, cUsers] = await Promise.all([
@@ -65,11 +55,12 @@ export default async function DashboardPage() {
   }
 
   try {
-    // created_at이 있는 경우에만 오늘 신규 회원 수 집계 (없으면 쿼리가 실패하고 0 유지)
+    // created_at이 있는 경우에만 오늘 신규 회원 수 집계 (Asia/Seoul 기준 오늘)
     const { count, error } = await supabase
       .from("learners")
       .select("*", { count: "exact", head: true })
-      .gte("created_at", today);
+      .gte("created_at", todayStart)
+      .lt("created_at", todayEnd);
     if (!error && typeof count === "number") {
       todayNewUsers = count;
     }
@@ -78,13 +69,37 @@ export default async function DashboardPage() {
   }
 
   try {
-    const { data, error } = await supabase
-      .from("contents")
-      .select("id, title, type")
-      .order("updated_at", { ascending: false })
+    const { data: statsRows } = await supabase
+      .from("content_stats")
+      .select("content_id, clicks, pageviews, completed_count")
+      .eq("stat_date", today)
+      .order("completed_count", { ascending: false })
       .limit(5);
-    if (!error && data) {
-      popularContents = data as { id: string; title: string; type?: string | null }[];
+    if (statsRows && statsRows.length > 0) {
+      const ids = (statsRows as { content_id: string }[]).map((r) => r.content_id);
+      const { data: contentsRows } = await supabase
+        .from("contents")
+        .select("id, title, type")
+        .in("id", ids);
+      if (contentsRows && contentsRows.length > 0) {
+        const byId = new Map(contentsRows.map((c: { id: string }) => [c.id, c]));
+        popularContents = statsRows.map((s: { content_id: string; clicks?: number; pageviews?: number; completed_count?: number }) => {
+          const c = byId.get(s.content_id) as { id: string; title: string; type?: string | null } | undefined;
+          return c
+            ? { ...c, clicks: s.clicks ?? 0, pageviews: s.pageviews ?? 0, completed_count: s.completed_count ?? 0 }
+            : { id: s.content_id, title: "(삭제된 콘텐츠)", clicks: s.clicks ?? 0, pageviews: s.pageviews ?? 0, completed_count: s.completed_count ?? 0 };
+        });
+      }
+    }
+    if (popularContents.length === 0) {
+      const { data, error } = await supabase
+        .from("contents")
+        .select("id, title, type")
+        .order("updated_at", { ascending: false })
+        .limit(5);
+      if (!error && data) {
+        popularContents = data as { id: string; title: string; type?: string | null }[];
+      }
     }
   } catch {
     // 테이블 없으면 빈 목록 유지
@@ -332,9 +347,13 @@ export default async function DashboardPage() {
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-[11px] text-gray-400">
-                      클릭수 / 페이지뷰
+                      클릭 / 조회 / 완료
                     </p>
-                    <p className="text-xs text-gray-500">연동 대기</p>
+                    <p className="text-xs text-gray-500">
+                      {item.clicks != null && item.pageviews != null
+                        ? `${item.clicks.toLocaleString()} / ${item.pageviews.toLocaleString()}${item.completed_count != null ? ` / ${item.completed_count.toLocaleString()}` : ""}`
+                        : "연동 대기"}
+                    </p>
                   </div>
                 </div>
               ))}
